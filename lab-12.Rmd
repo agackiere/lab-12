@@ -1,7 +1,7 @@
 ---
 title: "Lab 12 - Smoking during pregnancy"
-author: "Insert your name here"
-date: "Insert date here"
+author: "Anaelle Gackiere"
+date: "03-27-2026"
 output: github_document
 ---
 
@@ -11,17 +11,99 @@ output: github_document
 library(tidyverse) 
 library(tidymodels)
 library(openintro)
+library(skimr)
+
+set.seed(51)
 ```
 
 ### Exercise 1
 
-Remove this text, and add your answer for Exercise 1 here.
-Add code chunks as needed.
-Don't forget to label your code chunk.
-Do not use spaces in code chunk labels.
+Which variables in this dataset are numeric, and what do their distributions look like? Are there any outliers or extreme values that might affect your analysis?
+
+The variables that are numeric in ncbirths are female age, male age, weeks, visits, gained, weight. Mature, premie, lowbirthweight, gender, habit, marital, whitemom are categorical. Gained seems to have extreme values (from 0 pounds to 85 pounds) and it has 27 NAs. fage also has many NAs (171). There are some outliers for a lot of the variables, and we can already tell that smoking status changes some of the distributions.
+
+```{r exercise1-code}
+
+data(ncbirths)
+
+summary(ncbirths)
+
+skimr::skim(ncbirths)
+
+ncbirths %>%
+  select(fage, mage, weeks, visits, gained, weight, habit) %>%
+  filter(!is.na(habit)) %>%
+  pivot_longer(cols = c(fage, mage, weeks, visits, gained, weight),
+               names_to = "variable",
+               values_to = "value") %>%
+  ggplot(aes(x = habit, y = value, fill = habit)) +
+  geom_boxplot() +
+  facet_wrap(~variable, scales = "free_y") +
+  labs(title = "Numeric Variable Distributions by Smoking Habit",
+       x = NULL, y = NULL) +
+  theme(legend.position = "none")
+
+```
 
 ### Exercise 2
 
-...
+The mean of the weights of the white mom's babies in the dataset is 7.25 pounds.
 
-Add exercise headings as needed.
+```{r exercise2-code}
+
+ncbirths_white <- ncbirths %>%
+  filter(whitemom == "white")
+
+mean(ncbirths_white$weight)
+```
+
+
+### Exercise 3
+
+Are the criteria necessary for conducting simulation-based inference satisfied? Briefly consider whether simulation-based inference (e.g., bootstrapping) is appropriate in this context by addressing the following:
+Are observations in the sample independent of each other?
+Is the sample size reasonably large?
+Does the shape of the distribution pose any concerns (e.g., extreme skew or clustering)?
+Use graphical summaries (histogram, boxplot) and/or numerical summaries to support your answer. Refer back to your plots or output from Exercise 1.
+
+The data is a random sample from NC birth records, so observations should be independent. In terms of sample size, N = 714 is large enough for bootstrapping since the threshold is typically n ≥ 30. The shape of the distribution might pose some concerns; there is no extreme skew (although there is a slight negative skew) but there may be some clustering, since the tail of the distribution is essentially made up of premies. 
+
+```{r exercise3-code}
+
+# graphical summaries
+ggplot(ncbirths_white, aes(x = weight)) +
+  geom_histogram(binwidth = 0.5)
+
+ggplot(ncbirths_white, aes(x = weight, fill = premie)) +
+  geom_histogram(binwidth = 0.5, alpha = 0.7)
+
+ggplot(ncbirths_white, aes(y = weight)) +
+  geom_boxplot()
+
+# samplesize
+nrow(ncbirths_white)
+```
+
+### Exercise 4
+
+Here’s the general procedure: - Take a bootstrap sample (with replacement) from ncbirths_white. - Calculate the mean of this bootstrapped resample. - Repeat these two steps many times (e.g., 1,000 or more) to create a bootstrap distribution of sample means. - This distribution will be centered at the observed sample mean. - To simulate the null hypothesis, shift the entire distribution so that its mean equals 7.43. You can do this by subtracting the bootstrap distribution’s mean from each value, and then adding 7.43 back. - Once shifted, compare the observed mean to this distribution: calculate the proportion of simulated means that are at least as extreme as the observed mean (i.e., the p-value).
+
+📌 If this logic feels abstract, go back and review the Lecture on Bootstrapping. The same shifting strategy was used there to simulate a null centered at a hypothesized rent value.
+
+Run a hypothesis test using simulation-based inference. Your goal is to simulate a null distribution of sample means assuming a population mean of 7.43 pounds, and then assess how unusual the observed sample mean is within that distribution.
+To structure your analysis, work through the following steps:
+
+4a. Use bootstrapping to simulate a distribution of sample means from ncbirths_white.
+
+4b. Shift the distribution so that its center aligns with the null hypothesis value (7.43 pounds).
+
+4c. Create a histogram of your shifted null distribution. Overlay a dashed vertical line to show your observed sample mean.
+
+4d. Calculate the two-tailed p-value: what proportion of simulated means are at least as extreme (in both directions) as your observed value?
+
+4e. Interpret your results. Based on the p-value and your visualization, what do you conclude about whether birth weight has changed since 1995?
+
+
+
+
+
