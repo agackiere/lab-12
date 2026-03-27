@@ -246,9 +246,9 @@ boot_dist %>%
 
 ```
 
-# Mother's age vs. baby weight 
+# Mother's age vs. baby weight
 
-### Exercise 11 
+### Exercise 11
 
 Based on the summary, the cutoff between younger and mature mothers is age 35. Mothers aged 34 and under are classified as 'younger mom' and mothers aged 35 and older are classified as 'mature mom', with the minimum age for the mature category being 35 and the maximum being 50.
 
