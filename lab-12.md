@@ -11,8 +11,10 @@ library(tidymodels)
 library(openintro)
 library(skimr)
 
-set.seed(51)
+# i'm setting my seed right before the bootstrap
 ```
+
+# Baby Weights
 
 ### Exercise 1
 
@@ -129,21 +131,12 @@ pounds.
 ncbirths_white <- ncbirths %>%
   filter(whitemom == "white")
 
-mean(ncbirths_white$weight)
+mean(ncbirths_white$weight, na.rm = TRUE)
 ```
 
     ## [1] 7.250462
 
 ### Exercise 3
-
-Are the criteria necessary for conducting simulation-based inference
-satisfied? Briefly consider whether simulation-based inference (e.g.,
-bootstrapping) is appropriate in this context by addressing the
-following: Are observations in the sample independent of each other? Is
-the sample size reasonably large? Does the shape of the distribution
-pose any concerns (e.g., extreme skew or clustering)? Use graphical
-summaries (histogram, boxplot) and/or numerical summaries to support
-your answer. Refer back to your plots or output from Exercise 1.
 
 The data is a random sample from NC birth records, so observations
 should be independent. In terms of sample size, N = 714 is large enough
@@ -184,39 +177,110 @@ nrow(ncbirths_white)
 
 ### Exercise 4
 
-Here’s the general procedure: - Take a bootstrap sample (with
-replacement) from ncbirths_white. - Calculate the mean of this
-bootstrapped resample. - Repeat these two steps many times (e.g., 1,000
-or more) to create a bootstrap distribution of sample means. - This
-distribution will be centered at the observed sample mean. - To simulate
-the null hypothesis, shift the entire distribution so that its mean
-equals 7.43. You can do this by subtracting the bootstrap distribution’s
-mean from each value, and then adding 7.43 back. - Once shifted, compare
-the observed mean to this distribution: calculate the proportion of
-simulated means that are at least as extreme as the observed mean (i.e.,
-the p-value).
-
-📌 If this logic feels abstract, go back and review the Lecture on
-Bootstrapping. The same shifting strategy was used there to simulate a
-null centered at a hypothesized rent value.
-
-Run a hypothesis test using simulation-based inference. Your goal is to
-simulate a null distribution of sample means assuming a population mean
-of 7.43 pounds, and then assess how unusual the observed sample mean is
-within that distribution. To structure your analysis, work through the
-following steps:
-
 4a. Use bootstrapping to simulate a distribution of sample means from
 ncbirths_white.
+
+``` r
+set.seed(51)
+
+obs_mean <- mean(ncbirths_white$weight, na.rm = TRUE)
+
+boot_means <- ncbirths_white %>%
+  specify(response = weight) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "mean")
+```
 
 4b. Shift the distribution so that its center aligns with the null
 hypothesis value (7.43 pounds).
 
+``` r
+null_dist <- boot_means %>%
+  mutate(stat = stat - mean(stat) + 7.43)
+```
+
 4c. Create a histogram of your shifted null distribution. Overlay a
 dashed vertical line to show your observed sample mean.
+
+``` r
+null_dist %>%
+  ggplot(aes(x = stat)) +
+  geom_histogram(binwidth = 0.03, fill = "plum", color = "white") +
+  geom_vline(xintercept = obs_mean, linetype = "dashed", color = "plum4", linewidth = 1) +
+  labs(title = "Null Distribution of Sample Means",
+       x = "Mean Birth Weight (lbs)", y = "Count") +
+  theme_minimal()
+```
+
+![](lab-12_files/figure-gfm/code-4c-1.png)<!-- -->
 
 4d. Calculate the two-tailed p-value: what proportion of simulated means
 are at least as extreme (in both directions) as your observed value?
 
-4e. Interpret your results. Based on the p-value and your visualization,
-what do you conclude about whether birth weight has changed since 1995?
+``` r
+null_dist %>%
+  filter(stat <= obs_mean) %>%
+  summarize(p_value = 2 * n() / nrow(null_dist))
+```
+
+    ## # A tibble: 1 × 1
+    ##   p_value
+    ##     <dbl>
+    ## 1   0.002
+
+4e. Based on the p-value (0.002) and the visualization, I would conclude
+that birth weight has changed since 1995.
+
+# Baby weight vs. smoking
+
+### Exercise 5
+
+Both groups have some low weight outliers, and the nonsmoker group has
+some high weight outliers. Both groups have similar spread, with smokers
+having a marginally wider IQR compared to nonsmokers. Nonsmokers have a
+higher median birth weight than smokers. Based on the graph, smokers
+have a lower SD than nonsmokers.
+
+``` r
+ncbirths %>%
+  filter(!is.na(habit)) %>%
+  ggplot(aes(x = habit, y = weight, fill = habit)) +
+  geom_boxplot() +
+  labs(title = "Baby Weight by Mother's Smoking Habit",
+       x = "Smoking Habit", y = "Birth Weight (lbs)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+![](lab-12_files/figure-gfm/exercise5-code-1.png)<!-- -->
+
+### Exercise 6
+
+Removing rows with missing values in either variable ensures that group
+summaries are based only on complete observations. This prevents
+functions from returning NA and ensures every observation can be
+correctly assigned to a group.
+
+``` r
+ncbirths_clean <- ncbirths %>%
+  filter(!is.na(habit), !is.na(weight))
+```
+
+### Exercise 7
+
+The observed difference in mean birth weight between babies born to
+smoking and non-smoking mothers is around -.32 lbs.
+
+``` r
+ncbirths_clean %>%
+  group_by(habit) %>%
+  summarize(mean_weight = mean(weight)) %>%
+  summarize(diff = diff(mean_weight))
+```
+
+    ## # A tibble: 1 × 1
+    ##     diff
+    ##    <dbl>
+    ## 1 -0.316
+
+# Mother’s age vs. baby weight
