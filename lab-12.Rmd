@@ -178,4 +178,74 @@ ncbirths_clean %>%
 
 ```
 
+### Exercise 8
+
+Hypotheses for testing whether smoking is associated with a difference in birth weight:
+
+Null Hypothesis: There is no difference in average birth weight between babies born to smoking and non-smoking mothers.
+
+H₀: μ₁ = μ₂
+
+Alternative Hypothesis: There is a difference in average birth weight between babies born to smoking and non-smoking mothers.
+
+Hₐ: μ₁ ≠ μ₂
+
+### Exercise 9
+
+Permutation is the best choice here since it simulates the null hypothesis directly by shuffling group labels.
+
+```{r exercise9-code}
+
+# observed diff
+obs_diff <- ncbirths_clean %>%
+  group_by(habit) %>%
+  summarize(mean_weight = mean(weight)) %>%
+  summarize(diff = diff(mean_weight)) %>%
+  pull()
+
+# null dist via permutation
+set.seed(51)
+null_dist <- ncbirths_clean %>%
+  specify(response = weight, explanatory = habit) %>%
+  hypothesize(null = "independence") %>%
+  generate(reps = 1000, type = "permute") %>%
+  calculate(stat = "diff in means", order = c("nonsmoker", "smoker"))
+
+# p value
+null_dist %>%
+  filter(stat >= abs(obs_diff) | stat <= -abs(obs_diff)) %>%
+  summarize(p_value = n() / nrow(null_dist))
+
+# Visual. Note 2 vertical lines since two tailed and with permutation it's centered at 0. 
+
+null_dist %>%
+  ggplot(aes(x = stat)) +
+  geom_histogram(binwidth = 0.05, fill = "plum", color = "white") +
+  geom_vline(xintercept = obs_diff, linetype = "dashed", color = "plum4", linewidth = 1) +
+  geom_vline(xintercept = -obs_diff, linetype = "dashed", color = "plum4", linewidth = 1) +
+  labs(title = "Null Distribution of Difference in Mean Birth Weight",
+       x = "Difference in Means (nonsmoker - smoker)", y = "Count") +
+  theme_minimal()
+```
+
+### Exercise 10
+
+Based on our confidence interval, we can say that we are 95% confident that the true difference in mean birth weight between babies born to nonsmoking and smoking mothers is between 0.09 and 0.60 lbs, with nonsmokers having higher birth weights on average.
+
+```{r exercise10-code}
+
+# now we can bootstrap
+set.seed(51)
+boot_dist <- ncbirths_clean %>%
+  specify(response = weight, explanatory = habit) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "diff in means", order = c("nonsmoker", "smoker"))
+
+boot_dist %>%
+  summarize(lower = quantile(stat, 0.025),
+            upper = quantile(stat, 0.975))
+
+
+```
+
 # Mother's age vs. baby weight 
