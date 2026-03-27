@@ -371,3 +371,149 @@ boot_dist %>%
     ## 1 0.0947 0.604
 
 # Mother’s age vs. baby weight
+
+### Exercise 11
+
+Based on the summary, the cutoff between younger and mature mothers is
+age 35. Mothers aged 34 and under are classified as ‘younger mom’ and
+mothers aged 35 and older are classified as ‘mature mom’, with the
+minimum age for the mature category being 35 and the maximum being 50.
+
+``` r
+ncbirths %>%
+  group_by(mature) %>%
+  summarize(min_age = min(mage),
+            max_age = max(mage))
+```
+
+    ## # A tibble: 2 × 3
+    ##   mature      min_age max_age
+    ##   <fct>         <int>   <int>
+    ## 1 mature mom       35      50
+    ## 2 younger mom      13      34
+
+``` r
+# check visual
+ncbirths %>%
+  ggplot(aes(x = mage, fill = mature)) +
+  geom_histogram(binwidth = 1) +
+  theme_minimal()
+```
+
+![](lab-12_files/figure-gfm/exercise11-code-1.png)<!-- -->
+
+### Exercise 12
+
+Hypotheses
+
+Null: There is no difference in the proportion of low birth weight
+babies between younger and mature mothers.
+
+H₀: p₁ = p₂
+
+Alternative: There is a difference in the proportion of low birth weight
+babies between younger and mature mothers.
+
+Hₐ: p₁ ≠ p₂
+
+Conditions: Independence: yes, random sample, like before; sample size:
+N = 1000, which is adequate for bootstrapping; both groups have
+sufficient low birth weight cases so conditions are met.
+
+``` r
+# are there enough low weight cases?
+ncbirths %>%
+  group_by(mature) %>%
+  summarize(n = n(),
+            low = sum(lowbirthweight == "low"),
+            prop_low = mean(lowbirthweight == "low"))
+```
+
+    ## # A tibble: 2 × 4
+    ##   mature          n   low prop_low
+    ##   <fct>       <int> <int>    <dbl>
+    ## 1 mature mom    133    18    0.135
+    ## 2 younger mom   867    93    0.107
+
+I think permutation also makes sense here since we’re looking at the
+differences between two groups.
+
+``` r
+# observed diff
+obs_diff_prop <- ncbirths %>%
+  group_by(mature) %>%
+  summarize(prop_low = mean(lowbirthweight == "low")) %>%
+  summarize(diff = diff(prop_low)) %>%
+  pull()
+
+# null dist
+set.seed(51)
+null_dist_prop <- ncbirths %>%
+  specify(response = lowbirthweight, explanatory = mature,
+          success = "low") %>%
+  hypothesize(null = "independence") %>%
+  generate(reps = 1000, type = "permute") %>%
+  calculate(stat = "diff in props", 
+            order = c("mature mom", "younger mom"))
+
+# p value
+null_dist_prop %>%
+  filter(stat >= abs(obs_diff_prop) | stat <= -abs(obs_diff_prop)) %>%
+  summarize(p_value = n() / nrow(null_dist_prop))
+```
+
+    ## # A tibble: 1 × 1
+    ##   p_value
+    ##     <dbl>
+    ## 1   0.373
+
+``` r
+# visualize
+null_dist_prop %>%
+  ggplot(aes(x = stat)) +
+  geom_histogram(binwidth = 0.01, fill = "plum", color = "white") +
+  geom_vline(xintercept = obs_diff_prop, linetype = "dashed", color = "plum", linewidth = 1) +
+  geom_vline(xintercept = -obs_diff_prop, linetype = "dashed", color = "plum", linewidth = 1) +
+  labs(title = "Null Distribution of Difference in Proportions",
+       x = "Difference in Proportions (mature - younger)", y = "Count") +
+  theme_minimal()
+```
+
+![](lab-12_files/figure-gfm/exercise12-code-1.png)<!-- -->
+
+With a p-value of 0.373, we fail to reject the null hypothesis with our
+alpha level of .05. Thus, we can conclude that there is not enough
+evidence to conclude that the proportion of low birth weight babies
+differs between younger and mature mothers. While mature mothers had a
+slightly higher observed proportion of low birth weight babies (13.5% vs
+10.7%), this difference is not statistically significant and could
+plausibly be due to chance.
+
+### Exercise 13
+
+``` r
+# time for confidence interval! (switching to bootstrapping now)
+set.seed(51)
+boot_dist_prop <- ncbirths %>%
+  specify(response = lowbirthweight, explanatory = mature,
+          success = "low") %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "diff in props",
+            order = c("mature mom", "younger mom"))
+
+boot_dist_prop %>%
+  summarize(lower = quantile(stat, 0.025),
+            upper = quantile(stat, 0.975))
+```
+
+    ## # A tibble: 1 × 2
+    ##     lower  upper
+    ##     <dbl>  <dbl>
+    ## 1 -0.0265 0.0926
+
+Based on this CI, we can say that we are 95% confident that the true
+difference in the proportion of low birth weight babies between mature
+and younger mothers is between -0.03 and 0.09. Since this interval
+contains 0, it is plausible that there is no (statistically significant)
+difference in low birth weight rates between the two groups, which is
+consistent with our hypothesis test result (p = 0.373).
