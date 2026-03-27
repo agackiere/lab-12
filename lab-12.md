@@ -18,10 +18,6 @@ library(skimr)
 
 ### Exercise 1
 
-Which variables in this dataset are numeric, and what do their
-distributions look like? Are there any outliers or extreme values that
-might affect your analysis?
-
 The variables that are numeric in ncbirths are female age, male age,
 weeks, visits, gained, weight. Mature, premie, lowbirthweight, gender,
 habit, marital, whitemom are categorical. Gained seems to have extreme
